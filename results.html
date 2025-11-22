@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="results-container">
+  <h2>Quiz Completed!</h2>
+  <p>Your Score: <span id="score"></span></p>
+  <button onclick="goDashboard()">Back to Dashboard</button>
+</div>
+
+<script>
+document.getElementById("score").textContent = localStorage.getItem("lastScore");
+
+function goDashboard() {
+  window.location.href = "dashboard.html";
+}
+</script>
+</body>
+</html>
