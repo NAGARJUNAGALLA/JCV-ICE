@@ -22,12 +22,13 @@ async function fetchSheet(sheetName){
     return json.table.rows;
 }
 
-// Start Quiz
 async function startQuiz(){
     let userName = document.getElementById("userName").value.trim();
     const nameParam = getQueryParam("name");
     const sheetParam = getQueryParam("sheet");
-    if(nameParam) userName = nameParam;
+    
+    if(nameParam) userName = nameParam; // auto-fill from URL
+    
     if(!userName){alert("Enter your name"); return;}
     if(!sheetParam){alert("Quiz sheet not specified."); return;}
 
