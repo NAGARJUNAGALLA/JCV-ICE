@@ -1,0 +1,8 @@
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f2f5; }
+.login-container, .dashboard, .quiz-container, .results-container {
+  max-width:400px; margin:50px auto; padding:20px; background:#fff; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+input, button { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc; }
+button { cursor:pointer; background:#007BFF; color:#fff; border:none; }
+button:hover { background:#0056b3; }
+.quiz-item { border:1px solid #ccc; margin:10px 0; padding:10px; border-radius:5px; }
