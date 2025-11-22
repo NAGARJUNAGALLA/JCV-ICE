@@ -67,6 +67,17 @@ body{margin:0;font-family:'Segoe UI',sans-serif;background:#f8f8f8;}
     <button onclick="nextQuestion()">Next</button>
   </div>
 </div>
+<script>
+window.onload = function(){
+    const nameParam = new URLSearchParams(window.location.search).get("name");
+    if(nameParam){
+        document.getElementById("userName").value = nameParam;
+        // Optional: hide input if you want auto-start behavior
+        // document.getElementById("user-form").style.display="none";
+        // startQuiz();
+    }
+};
+</script>
 
 <script src="quiz.js"></script>
 </body>
