@@ -1,19 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
-<link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body{font-family:'Segoe UI',sans-serif;margin:0;padding:0;background:#f8f8f8;}
+header{background:#1b4332;color:#fff;padding:20px;text-align:center;font-size:22px;font-weight:600;}
+.container{max-width:1000px;margin:20px auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;}
+.card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;cursor:pointer;transition:all 0.3s;}
+.card:hover{transform:translateY(-5px);box-shadow:0 4px 15px rgba(0,0,0,0.2);}
+.card h3{margin:10px 0;color:#1b4332;}
+.card i{font-size:40px;color:#1b4332;}
+</style>
 </head>
 <body>
-<div class="dashboard">
-  <h2>Welcome, <span id="user-name"></span></h2>
-  <h3>Available Quizzes</h3>
-  <div id="quiz-list"></div>
-  <button onclick="logout()">Logout</button>
-</div>
 
-<script src="js/dashboard.js"></script>
+<header>Quiz Dashboard</header>
+<div class="container" id="quiz-container"></div>
+
+<script>
+// Replace your Google Sheet ID
+const SHEET_ID = "11Tp1a_krEPClWVK6JPOncoPw6pGeFcLJdsthptTLRhw";
+const QUIZ_LIST_SHEET = "Quizzes"; // Sheet with test list
+
+async function loadQuizzes(){
+    try{
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${QUIZ_LIST_SHEET}`;
+        const res = await fetch(url);
+        const text = await res.text();
+        const json = JSON.parse(text.substr(47).slice(0,-2));
+        const quizzes = json.table.rows.map(r=>({ name:r.c[0]?.v, sheet:r.c[1]?.v }));
+        const container = document.getElementById("quiz-container");
+        quizzes.forEach((q,i)=>{
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `<i class="fa-solid fa-book-open"></i><h3>${q.name}</h3>`;
+            card.onclick = ()=>{
+                // Navigate to quiz.html with query params
+                window.location.href = `quiz.html?sheet=${encodeURIComponent(q.sheet)}&name=${encodeURIComponent(q.name)}`;
+            };
+            container.appendChild(card);
+        });
+    }catch(err){
+        console.error(err);
+        alert("Failed to load quizzes. Check Sheet ID and publishing settings.");
+    }
+}
+
+loadQuizzes();
+</script>
 </body>
 </html>
