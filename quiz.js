@@ -15,12 +15,21 @@ function getQueryParam(param){
 
 // Fetch Google Sheet
 async function fetchSheet(sheetName){
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetName}`;
-    const res = await fetch(url);
-    const text = await res.text();
-    const json = JSON.parse(text.substr(47).slice(0,-2));
-    return json.table.rows;
+    try{
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetName}`;
+        const res = await fetch(url);
+        const text = await res.text();
+        // Remove the leading characters "google.visualization.Query.setResponse(" and trailing ");"
+        const jsonText = text.replace(/^.*?({.*})\);?$/, "$1");
+        const json = JSON.parse(jsonText);
+        return json.table.rows;
+    } catch(err){
+        console.error("Error fetching sheet:", err);
+        alert("Failed to fetch Google Sheet. Check Sheet ID and sheet name.");
+        return [];
+    }
 }
+
 
 // Start Quiz
 async function startQuiz(){
