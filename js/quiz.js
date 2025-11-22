@@ -1,135 +1,164 @@
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbzfr2Al0_zoFfMdcT6_fsxOaSDO-a3F9Io5lkkUyl-1ewVZUWIz80nSJRqhqv3QF3KR/exec"; // Replace with your URL
-const QUIZ_TITLE = "వాక్యాలు రకాలు";
+// Replace your Google Sheet ID here
+const SHEET_ID = "YOUR_SHEET_ID_HERE"; 
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
-let questions = [], current = 0, answers = [], submitted = false, timeLeft = 0, timerInterval;
+let quizzes = []; // All quizzes
+let questions = [];
+let current = 0;
+let answers = [];
+let submitted = false;
+let timeLeft = 0;
+let timerInterval = null;
 
-// Load quiz from Google Sheets
-async function loadQuiz() {
-  const name = document.getElementById("userName").value.trim();
-  if (!name) { alert("Please enter your name first."); return; }
-
-  document.getElementById("user-form").style.display = "none";
-  document.getElementById("quiz-area").style.display = "block";
-  document.getElementById("quiz-title-text").textContent = QUIZ_TITLE;
-
+// Load quiz names from Google Sheets
+async function loadTestNames() {
   try {
-    const res = await fetch(GOOGLE_SHEET_URL);
-    questions = await res.json();
-    answers = Array(questions.length).fill(null);
-    timeLeft = questions.length * 60; // 1 min per question
-    renderNav();
-    renderQuestion();
-    startTimer();
-  } catch (err) {
-    alert("Failed to load questions from Google Sheets");
+    const res = await fetch(SHEET_URL);
+    const text = await res.text();
+    const json = JSON.parse(text.substr(47).slice(0, -2));
+    quizzes = json.table.rows.map(r => ({ name: r.c[0].v, sheet: r.c[1].v }));
+    const select = document.getElementById("testSelect");
+    quizzes.forEach((q,i)=>{
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = q.name;
+      select.appendChild(opt);
+    });
+  } catch(err) {
+    alert("Failed to load quizzes from Google Sheets.");
     console.error(err);
   }
 }
 
-// Question navigation
-function toggleNav() { document.getElementById("question-nav").classList.toggle("hidden"); }
+// Load questions for selected quiz
+async function startQuiz() {
+  const userName = document.getElementById("userName").value.trim();
+  if(!userName){alert("Enter your name");return;}
+  const testIndex = document.getElementById("testSelect").value;
+  const testSheet = quizzes[testIndex].sheet;
 
-function renderNav() {
-  const nav = document.getElementById("question-nav");
-  nav.innerHTML = "";
-  questions.forEach((_, i) => {
-    const btn = document.createElement("button");
-    btn.textContent = i + 1;
-    btn.className = (i === current ? "active " : "") + (answers[i] !== null ? "answered" : "");
-    btn.onclick = () => { current = i; renderQuestion(); };
-    nav.appendChild(btn);
-  });
-  updateStats();
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${testSheet}`);
+    const text = await res.text();
+    const json = JSON.parse(text.substr(47).slice(0, -2));
+    questions = json.table.rows.map(r=>({
+      q: r.c[0]?.v,
+      options: [r.c[1]?.v,r.c[2]?.v,r.c[3]?.v,r.c[4]?.v].filter(o=>o!==undefined),
+      answerId: r.c[5]?.v
+    }));
+    answers = Array(questions.length).fill(null);
+    current=0;submitted=false;
+    timeLeft = questions.length*60;
+
+    document.getElementById("user-form").style.display="none";
+    document.getElementById("quiz-container").style.display="block";
+    document.getElementById("quiz-title").textContent = quizzes[testIndex].name;
+
+    renderQuestion();
+    renderNav();
+    startTimer();
+  } catch(err){
+    alert("Failed to load questions from selected quiz");
+    console.error(err);
+  }
 }
 
-// Display current question
+// Render question
 function renderQuestion() {
   const q = questions[current];
-  const container = document.getElementById("question-container");
-  let html = `<h4>Question ${current + 1} of ${questions.length}</h4><p>${q.q}</p><div class="options">`;
-  q.options.forEach((o, i) => {
-    let cls = "";
-    if (submitted) {
-      if (i === q.answerId) cls = "correct";
-      else if (answers[current] === i && i !== q.answerId) cls = "wrong";
+  document.getElementById("question-text").innerHTML = `Q${current+1}. ${q.q}`;
+  const optionsDiv = document.getElementById("options");
+  optionsDiv.innerHTML = "";
+  q.options.forEach((opt,i)=>{
+    let cls="";
+    if(submitted){
+      if(i===q.answerId) cls="correct";
+      else if(answers[current]===i && i!==q.answerId) cls="wrong";
     }
-    html += `<label class="${cls}">
-               <input type="radio" name="opt" value="${i}" ${answers[current] === i ? "checked" : ""} 
-               ${submitted ? "disabled" : ""} onchange="selectOpt(${i})"> ${o}
-             </label>`;
+    const label = document.createElement("label");
+    label.className = cls;
+    label.innerHTML = `<input type="radio" name="opt" value="${i}" ${answers[current]===i?'checked':''} ${submitted?'disabled':''} onchange="selectOpt(${i})"> ${opt}`;
+    optionsDiv.appendChild(label);
   });
-  html += "</div>";
-  container.innerHTML = html;
   renderNav();
-
-  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([container]);
+  if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([optionsDiv]);
 }
 
 // Select option
-function selectOpt(i) {
-  if (submitted) return;
-  answers[current] = i;
+function selectOpt(i){
+  if(submitted) return;
+  answers[current]=i;
   renderNav();
 }
 
-// Navigate questions
-function nextQuestion() { if (current < questions.length - 1) { current++; renderQuestion(); } }
-function prevQuestion() { if (current > 0) { current--; renderQuestion(); } }
+// Navigation buttons
+function nextQuestion(){if(current<questions.length-1){current++; renderQuestion();}}
+function prevQuestion(){if(current>0){current--; renderQuestion();}}
 
-// Stats
-function updateStats() {
-  const answered = answers.filter(a => a !== null).length;
-  document.getElementById("answered").textContent = "Answered: " + answered;
-  document.getElementById("not-answered").textContent = "Not answered: " + (questions.length - answered);
+// Question nav buttons
+function renderNav(){
+  const nav = document.getElementById("question-nav");
+  nav.innerHTML = "";
+  questions.forEach((_,i)=>{
+    const btn = document.createElement("button");
+    btn.textContent = i+1;
+    btn.className = (i===current?"active ":"")+(answers[i]!=null?"answered":"");
+    btn.onclick = ()=>{current=i; renderQuestion();};
+    nav.appendChild(btn);
+  });
 }
 
 // Timer
-function startTimer() {
+function startTimer(){
   updateTimer();
-  timerInterval = setInterval(() => {
+  timerInterval=setInterval(()=>{
     timeLeft--;
     updateTimer();
-    if (timeLeft <= 0) { clearInterval(timerInterval); submitQuiz(); }
-  }, 1000);
+    if(timeLeft<=0){clearInterval(timerInterval);submitQuiz();}
+  },1000);
 }
-
-function updateTimer() {
-  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+function updateTimer(){
+  const m=Math.floor(timeLeft/60), s=timeLeft%60;
   document.getElementById("timer").textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 // Submit quiz
-function submitQuiz() {
-  if (submitted) return;
-  submitted = true;
+function submitQuiz(){
+  if(submitted) return;
+  submitted=true;
   clearInterval(timerInterval);
-
-  let correct = 0, wrong = 0;
-  questions.forEach((q, i) => {
-    if (answers[i] !== null) {
-      if (answers[i] === q.answerId) correct++;
+  let correct=0, wrong=0;
+  questions.forEach((q,i)=>{
+    if(answers[i]!=null){
+      if(answers[i]===q.answerId) correct++;
       else wrong++;
     }
   });
-  const skipped = questions.length - (correct + wrong);
+  const skipped = questions.length-(correct+wrong);
   const total = questions.length;
-  const score = Math.round((correct / total) * 100);
+  const score = Math.round((correct/total)*100);
   const name = document.getElementById("userName").value;
 
-  const html = `<h3>Result Summary</h3>
-                <p><b>Name:</b> ${name}</p>
-                <p><b>Total Questions:</b> ${total}</p>
-                <p><b>Correct:</b> ${correct}</p>
-                <p><b>Wrong:</b> ${wrong}</p>
-                <p><b>Skipped:</b> ${skipped}</p>
-                <p><b>Score:</b> ${score}%</p>`;
-  document.getElementById("result-section").innerHTML = html;
-  document.getElementById("result-section").classList.remove("hidden");
+  const result = {name,total,correct,wrong,skipped,score};
+  localStorage.setItem("quizResult",JSON.stringify(result));
+
+  const resultDiv = document.getElementById("result-section");
+  resultDiv.style.display="block";
+  resultDiv.innerHTML=`<h3>Result Summary</h3>
+  <p><b>Name:</b> ${name}</p>
+  <p><b>Total Questions:</b> ${total}</p>
+  <p><b>Correct:</b> ${correct}</p>
+  <p><b>Wrong:</b> ${wrong}</p>
+  <p><b>Skipped:</b> ${skipped}</p>
+  <p><b>Score:</b> ${score}%</p>`;
   renderQuestion();
 }
 
-// Fullscreen toggle
-function toggleFullscreen() {
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => alert(e.message));
+// Fullscreen
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>alert(e.message));
   else document.exitFullscreen();
 }
+
+// Initialize
+loadTestNames();
